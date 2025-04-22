@@ -1,7 +1,16 @@
 import sys
 from mathrandom import MathRandom
-# sys.path.append("/home/aothuatgiadp/Cryptography/plaidctf/innov8/mathrandomcrack/mathrandomcrack")
-# from mathrandomcrack import recover_state_from_math_random_doubles
+from gf2bv import LinearSystem, BitVec
+import struct
+
+def v8_from_double(double):
+    """
+    Convert a double back to a 64-bit integer.
+    The 12 least significant bits of the result cannot be recovered.
+    """
+    if double == 1.0:
+        return 0xffffffffffffffff
+    return (struct.unpack('<Q', struct.pack('d', double + 1.0))[0] & 0xfffffffffffff)
 
 numbers = [
     0.20850633840727073,
@@ -30,7 +39,17 @@ numbers = [
     0.5230661117641415
 ]
 
+# exit(0)
+lin = LinearSystem([64] * 2)
+state0, state1 = lin.gens()
 
-# for state in recover_state_from_math_random_doubles(numbers[:23]):
-    # print([state.next() for _ in range(24)])
+Random = MathRandom(state0, state1, True)
 
+out = [Random.next() for _ in range(len(numbers))]
+
+zeros = [(v8_from_double(numbers[i]) | 0x3ff0000000000000) ^ out[i] for i in range(len(numbers))]
+
+print("solving...")
+sol = lin.solve_one(zeros)
+
+print(sol)
